@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Analisador de Planilhas do Microsoft Planner</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  <!-- Chart.js via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <h1>📊 Analisador de Planilhas do Planner</h1>
+      <div id="plano-info" class="plano-info" hidden>
+        <span id="plano-nome"></span>
+      </div>
+      <button id="btn-trocar-arquivo" class="btn btn-ghost" hidden>Trocar planilha</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ===================== ESTADO A: UPLOAD ===================== -->
+    <section id="tela-upload" class="tela-upload">
+      <div class="card-upload">
+        <h2>Envie a planilha exportada do Microsoft Planner</h2>
+        <p class="muted">
+          Selecione o arquivo <code>.xlsx</code> exportado pelo Planner.
+          A aplicação valida a estrutura e gera um dashboard com filtros.
+        </p>
+
+        <div id="dropzone" class="dropzone" tabindex="0">
+          <div class="dropzone-conteudo">
+            <div class="dropzone-icone">📁</div>
+            <p><strong>Arraste o arquivo aqui</strong> ou clique para selecionar</p>
+            <p class="muted small">Formato aceito: .xlsx</p>
+          </div>
+          <input type="file" id="input-arquivo" accept=".xlsx" hidden />
+        </div>
+
+        <details class="ajuda-exportacao">
+          <summary>Como exportar corretamente do Planner?</summary>
+          <ol>
+            <li>Abra o plano no <strong>Microsoft Planner</strong>.</li>
+            <li>No menu do plano (reticências), escolha <strong>"Exportar para Excel"</strong>.</li>
+            <li>O arquivo gerado terá as abas <em>Plano</em>, <em>Dados Consolidados</em>,
+                <em>Tarefas</em>, <em>Metas</em>, <em>Buckets</em> e <em>Usuários</em>.</li>
+            <li>Envie aqui esse arquivo sem alterar a estrutura.</li>
+          </ol>
+        </details>
+
+        <div id="upload-erro" class="alert alert-erro" hidden></div>
+        <div id="upload-aviso" class="alert alert-aviso" hidden></div>
+        <div id="upload-status" class="spinner-wrap" hidden>
+          <div class="spinner"></div><span>Validando planilha…</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== ESTADO B: DASHBOARD ===================== -->
+    <section id="tela-dashboard" class="tela-dashboard" hidden>
+      <!-- Barra de filtros (fixa no topo) -->
+      <div id="filtros-barra" class="filtros-barra">
+        <div class="filtros-grid">
+          <div class="filtro-grupo">
+            <label>Pessoas</label>
+            <div id="filtro-pessoas" class="multiselect" data-chips></div>
+          </div>
+          <div class="filtro-grupo">
+            <label>Categoria</label>
+            <div id="filtro-categorias" class="multiselect" data-chips></div>
+          </div>
+          <div class="filtro-grupo">
+            <label>Status</label>
+            <div id="filtro-status" class="multiselect" data-chips></div>
+          </div>
+          <div class="filtro-grupo">
+            <label>Rótulos</label>
+            <div id="filtro-rotulos" class="multiselect" data-chips></div>
+          </div>
+
+          <div class="filtro-grupo">
+            <label>Data de conclusão</label>
+            <div class="periodo-controle">
+              <select id="conclusao-preset" class="select-periodo">
+                <option value="tudo" selected>Tudo</option>
+                <option value="7">Últimos 7 dias</option>
+                <option value="30">Últimos 30 dias</option>
+                <option value="mes">Este mês</option>
+                <option value="mes_anterior">Mês anterior</option>
+                <option value="90">Últimos 90 dias</option>
+                <option value="range">Intervalo personalizado…</option>
+              </select>
+              <div id="conclusao-range" class="range-datas" hidden>
+                <input type="date" id="conclusao-ini" /> a <input type="date" id="conclusao-fim" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="filtros-acoes">
+          <span id="contador-tarefas" class="contador"></span>
+          <div class="acoes-direita">
+            <div class="dropdown-visuais">
+              <button id="btn-personalizar" class="btn btn-ghost btn-pequeno">Personalizar visuais</button>
+              <div id="painel-visuais" class="dropdown-painel" hidden>
+                <div class="visuais-opcoes"></div>
+              </div>
+            </div>
+            <button id="btn-limpar" class="btn btn-ghost">Limpar filtros</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div id="kpis" class="kpi-grid"></div>
+
+      <!-- Gráficos -->
+      <div class="graficos-grid">
+        <div class="card-grafico" data-visual="pessoas">
+          <h3>Atividades por pessoa</h3>
+          <canvas id="grafico-pessoas"></canvas>
+        </div>
+        <div class="card-grafico" data-visual="status">
+          <h3>Distribuição por status</h3>
+          <canvas id="grafico-status"></canvas>
+        </div>
+        <div class="card-grafico" data-visual="categoria">
+          <h3>Distribuição por categoria</h3>
+          <canvas id="grafico-categoria"></canvas>
+        </div>
+        <div class="card-grafico" data-visual="semanal">
+          <h3>Volume de conclusões por semana</h3>
+          <canvas id="grafico-semanal"></canvas>
+        </div>
+        <div class="card-grafico card-grafico-largo" data-visual="evolucao">
+          <h3>Evolução de conclusões ao longo do tempo</h3>
+          <canvas id="grafico-evolucao"></canvas>
+        </div>
+      </div>
+
+      <!-- Painel de resumo por IA -->
+      <div class="card-resumo">
+        <div class="resumo-cabecalho">
+          <h2>✨ Resumo das atividades com IA</h2>
+          <p class="muted small">
+            Gera um texto que sintetiza o <strong>conteúdo</strong> (nome da tarefa,
+            checklist e notas) das tarefas filtradas no momento.
+          </p>
+        </div>
+        <div class="resumo-controles">
+          <label>Tamanho:
+            <select id="resumo-tamanho">
+              <option value="curto" selected>Curto (~100 palavras)</option>
+              <option value="medio">Médio (~200 palavras)</option>
+              <option value="longo">Longo (~400 palavras)</option>
+              <option value="muito_longo">Muito longo (~700 palavras)</option>
+            </select>
+          </label>
+          <label>Tom:
+            <select id="resumo-tom">
+              <option value="executivo" selected>Executivo / profissional</option>
+              <option value="narrativo">Narrativo / descritivo</option>
+            </select>
+          </label>
+          <label>Pessoa:
+            <select id="resumo-pessoa">
+              <option value="terceira" selected>Terceira pessoa (ele/ela/equipe)</option>
+              <option value="primeira">Primeira pessoa (eu)</option>
+            </select>
+          </label>
+          <button id="btn-gerar-resumo" class="btn btn-primario">Gerar resumo</button>
+          <button id="btn-copiar-resumo" class="btn btn-ghost" hidden>Copiar</button>
+        </div>
+        <div id="resumo-status" class="spinner-wrap" hidden>
+          <div class="spinner"></div><span id="resumo-status-texto">Gerando resumo…</span>
+        </div>
+        <div id="resumo-erro" class="alert alert-erro" hidden></div>
+        <div id="resumo-saida" class="resumo-saida" hidden>
+          <div class="resumo-meta muted small"></div>
+          <div class="resumo-texto"></div>
+        </div>
+      </div>
+
+      <!-- Tabela detalhada -->
+      <div class="card-tabela">
+        <div class="tabela-cabecalho">
+          <h3>Tarefas filtradas</h3>
+          <input type="search" id="busca-tabela" placeholder="Buscar nas tarefas…" />
+        </div>
+        <div class="tabela-wrap">
+          <table id="tabela-tarefas">
+            <thead>
+              <tr>
+                <th data-ordem="nome">Tarefa</th>
+                <th data-ordem="responsaveis">Responsáveis</th>
+                <th data-ordem="status">Status</th>
+                <th data-ordem="categoria">Categoria</th>
+                <th data-ordem="data_conclusao">Conclusão</th>
+                <th data-ordem="rotulos">Rótulos</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="rodape muted small">
+    Analisador de Planilhas do Planner • execução local
+  </footer>
+
+  <!-- Botão flutuante: voltar ao topo -->
+  <button id="btn-topo" class="btn-topo" hidden title="Voltar ao topo" aria-label="Voltar ao topo">↑</button>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+.venv
+__pycache__
+**/*.pyc
+.git
+.gitignore
+.env
+planner-example.xlsx
+README.md
+CLAUDE.md
+.claude
+Dockerfile
+docker-compose.yml

@@ -1,0 +1,15 @@
+services:
+  planner-analyzer:
+    build: .
+    container_name: planner-analyzer
+    ports:
+      - "5000:5000"
+    environment:
+      HOST: "0.0.0.0"   # expõe o servidor dentro do container
+      PORT: "5000"
+      DEBUG: "0"        # mude para "1" para ativar o modo debug/reloader
+    # As chaves de API (ZAI_API_KEY, DEEPSEEK_API_KEY, GEMINI_API_KEY) são
+    # injetadas a partir do .env do projeto; não são copiadas para a imagem.
+    env_file:
+      - .env
+    restart: unless-stopped

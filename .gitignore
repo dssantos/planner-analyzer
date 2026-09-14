@@ -1,0 +1,13 @@
+# Ambiente virtual e cache Python
+.venv/
+__pycache__/
+*.py[cod]
+
+# Segredos (chaves de API)
+.env
+
+# Exports/planilhas locais (planner-example.xlsx fica só local)
+*.xlsx
+
+# Configuração local do Claude Code
+.claude/
